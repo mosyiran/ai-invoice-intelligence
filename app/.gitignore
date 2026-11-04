@@ -1,7 +1,5 @@
+.env
 .venv/
+.venv-ocr/
 __pycache__/
 *.pyc
-.env
-.pytest_cache/
-.idea/
-.vscode/
