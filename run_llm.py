@@ -27,16 +27,24 @@ Total: 1200.00 GBP
 
 
 # Extract invoice information
-result = extract_invoice_data(sample_ocr_text)
+invoice = extract_invoice_data(sample_ocr_text)
+
+
+# Convert Pydantic model to dictionary
+invoice_data = invoice.model_dump(
+    mode="json"
+)
 
 
 # Display result
-print("\n========== GEMINI EXTRACTION RESULT ==========\n")
+print("\n========== VALIDATED INVOICE DATA ==========\n")
 
 print(
     json.dumps(
-        result,
+        invoice_data,
         indent=4,
         ensure_ascii=False
     )
 )
+
+print("\n========== VALIDATION SUCCESSFUL ==========\n")
