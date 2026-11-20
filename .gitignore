@@ -1,1 +1,17 @@
 .env
+# SQLite
+database/*.db
+
+# Qdrant local storage
+database/qdrant_storage/
+
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environments
+.venv/
+.venv-ocr/
+
+# Environment variables
+.env
