@@ -9,16 +9,12 @@ from app.models.invoice import Invoice
 
 
 def normalize_text(value: str | None) -> str:
-    """
-    Normalize text for duplicate comparison.
-    """
+    """Normalize text for duplicate comparison."""
 
     if not value:
         return ""
 
     value = value.strip().casefold()
-
-    # Remove extra spaces
     value = re.sub(r"\s+", " ", value)
 
     return value
@@ -27,48 +23,56 @@ def normalize_text(value: str | None) -> str:
 def normalize_invoice_number(
     invoice_number: str | None
 ) -> str:
+    """Normalize invoice number by removing separators."""
 
     if not invoice_number:
         return ""
 
-    # Remove spaces and common separators
     value = invoice_number.strip().casefold()
-
     value = re.sub(r"[\s\-_./]", "", value)
 
     return value
 
 
-def normalize_tax_id(
-    tax_id: str | None
-) -> str:
+def normalize_tax_id(tax_id: str | None) -> str:
+    """Normalize supplier tax ID."""
 
     if not tax_id:
         return ""
 
-    return re.sub(
-        r"[^a-zA-Z0-9]",
-        "",
-        tax_id
-    ).casefold()
+    return re.sub(r"[^a-zA-Z0-9]", "", tax_id).casefold()
 
 
 def to_decimal(value) -> Decimal | None:
-
     if value is None:
         return None
 
     return Decimal(str(value))
 
 
+def get_candidate_statement(invoice: Invoice):
+    """
+    Return existing invoices, excluding the current invoice
+    when it already has a database ID.
+    """
+
+    statement = select(Invoice)
+
+    if invoice.id is not None:
+        statement = statement.where(
+            Invoice.id != invoice.id
+        )
+
+    return statement
+
+
 def find_exact_duplicate(
     db: Session,
     invoice: Invoice
 ):
-
     """
-    Find exact duplicate using:
-    normalized invoice number + supplier tax ID.
+    Find duplicate using normalized invoice number
+    and supplier tax ID.
     """
 
     invoice_number = normalize_invoice_number(
@@ -82,8 +86,7 @@ def find_exact_duplicate(
     if not invoice_number or not tax_id:
         return None
 
-    statement = select(Invoice).where(
-        Invoice.id != invoice.id,
+    statement = get_candidate_statement(invoice).where(
         Invoice.supplier_tax_id.is_not(None),
         Invoice.invoice_number.is_not(None),
     )
@@ -91,7 +94,6 @@ def find_exact_duplicate(
     candidates = db.scalars(statement).all()
 
     for candidate in candidates:
-
         candidate_number = normalize_invoice_number(
             candidate.invoice_number
         )
@@ -113,7 +115,6 @@ def find_normalized_duplicate(
     db: Session,
     invoice: Invoice
 ):
-
     """
     Find duplicate using normalized supplier name
     and normalized invoice number.
@@ -130,14 +131,11 @@ def find_normalized_duplicate(
     if not invoice_number or not supplier_name:
         return None
 
-    statement = select(Invoice).where(
-        Invoice.id != invoice.id
-    )
+    statement = get_candidate_statement(invoice)
 
     candidates = db.scalars(statement).all()
 
     for candidate in candidates:
-
         candidate_number = normalize_invoice_number(
             candidate.invoice_number
         )
@@ -159,7 +157,6 @@ def find_potential_duplicate(
     db: Session,
     invoice: Invoice
 ):
-
     """
     Find possible duplicate using:
     supplier + invoice date + total + currency.
@@ -181,8 +178,7 @@ def find_potential_duplicate(
 
     currency = invoice.currency.strip().upper()
 
-    statement = select(Invoice).where(
-        Invoice.id != invoice.id,
+    statement = get_candidate_statement(invoice).where(
         Invoice.invoice_date == invoice.invoice_date,
         Invoice.currency == currency,
     )
@@ -190,7 +186,6 @@ def find_potential_duplicate(
     candidates = db.scalars(statement).all()
 
     for candidate in candidates:
-
         candidate_supplier = normalize_text(
             candidate.supplier_name
         )
@@ -212,6 +207,9 @@ def detect_duplicate(
     db: Session,
     invoice: Invoice
 ) -> dict:
+    """
+    Detect exact, normalized, or potential duplicates.
+    """
 
     exact = find_exact_duplicate(db, invoice)
 
